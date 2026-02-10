@@ -2,6 +2,10 @@
 
 DETR (Facebook DETR) を使ったシンプルな物体検出 API + フロントエンド（FastAPI）。
 
+<p align="center">
+    <img src="https://github.com/Ryo-Kawanami/object_detection_app_uv/main/assets/showcase.png" width="300"/>
+<p>
+
 ## 概要
 
 - FastAPI サーバーが Hugging Face Transformers の DETR モデルを読み込み、アップロード画像に対して物体検出を行う。
