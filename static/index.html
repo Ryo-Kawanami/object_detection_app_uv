@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DETR Object Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+<div id="app" class="min-h-screen flex flex-col items-center py-10 px-4">
+    
+    <h1 class="text-4xl font-bold mb-2 text-indigo-600">DETR Object Detection</h1>
+    <p class="mb-8 text-gray-500">FastAPI + Hugging Face Transformers</p>
+
+    <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-4xl flex flex-col gap-4">
+        
+        <div class="flex items-center justify-center w-full">
+            <label for="dropzone-file" class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition">
+                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                    <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
+                    <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                    <p class="text-xs text-gray-500">JPG, PNG (MAX. 800x800 recommended)</p>
+                </div>
+                <input id="dropzone-file" type="file" class="hidden" @change="handleFileUpload" accept="image/*" />
+            </label>
+        </div>
+
+        <div class="flex items-center gap-4 px-2">
+            <span class="text-sm font-medium">Confidence Threshold: {{ threshold }}</span>
+            <input type="range" min="0.5" max="1.0" step="0.05" v-model.number="threshold" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            <button @click="detectObjects" :disabled="!imageFile || loading" 
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2">
+                <i v-if="loading" class="fas fa-spinner fa-spin"></i>
+                <span v-else>Detect</span>
+            </button>
+        </div>
+    </div>
+
+    <div v-if="imageUrl" class="mt-8 relative w-full max-w-4xl shadow-2xl rounded-lg overflow-hidden bg-black">
+        <img ref="imageRef" :src="imageUrl" @load="onImageLoad" class="w-full h-auto block" alt="Uploaded Image">
+
+        <div v-for="(det, index) in detections" :key="index"
+             class="absolute border-2 border-yellow-400 bg-yellow-400/20 hover:bg-yellow-400/40 transition-colors cursor-help"
+             :style="getBoxStyle(det.box)">
+            
+             <span class="absolute -top-6 left-0 bg-yellow-400 text-black text-xs font-bold px-1 py-0.5 rounded shadow-sm whitespace-nowrap">
+                {{ det.label }} ({{ (det.score * 100).toFixed(0) }}%)
+            </span>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const { createApp, ref } = Vue;
+
+    createApp({
+        setup() {
+            const imageFile = ref(null);
+            const imageUrl = ref(null);
+            const detections = ref([]);
+            const loading = ref(false);
+            const threshold = ref(0.9);
+            const imageRef = ref(null);
+            
+            // 画像の元サイズ（座標計算用）
+            const naturalSize = ref({ w: 0, h: 0 });
+
+            const handleFileUpload = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                imageFile.value = file;
+                imageUrl.value = URL.createObjectURL(file);
+                detections.value = []; // リセット
+            };
+
+            const onImageLoad = () => {
+                if (imageRef.value) {
+                    naturalSize.value = {
+                        w: imageRef.value.naturalWidth,
+                        h: imageRef.value.naturalHeight
+                    };
+                }
+            };
+
+            const detectObjects = async () => {
+                if (!imageFile.value) return;
+
+                loading.value = true;
+                const formData = new FormData();
+                formData.append('file', imageFile.value);
+
+                try {
+                    // クエリパラメータでthresholdを渡す
+                    const response = await fetch(`/detect?threshold=${threshold.value}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) throw new Error('API Error');
+                    
+                    const data = await response.json();
+                    detections.value = data.detections;
+                } catch (e) {
+                    alert('Error detecting objects: ' + e.message);
+                } finally {
+                    loading.value = false;
+                }
+            };
+
+            // サーバーから返るピクセル座標をCSSの%座標に変換
+            const getBoxStyle = (box) => {
+                const { w, h } = naturalSize.value;
+                if (w === 0 || h === 0) return {};
+
+                // box: {xmin, ymin, xmax, ymax}
+                const left = (box.xmin / w) * 100;
+                const top = (box.ymin / h) * 100;
+                const width = ((box.xmax - box.xmin) / w) * 100;
+                const height = ((box.ymax - box.ymin) / h) * 100;
+
+                return {
+                    left: `${left}%`,
+                    top: `${top}%`,
+                    width: `${width}%`,
+                    height: `${height}%`
+                };
+            };
+
+            return {
+                imageFile, imageUrl, detections, loading, threshold, imageRef,
+                handleFileUpload, detectObjects, getBoxStyle, onImageLoad
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
