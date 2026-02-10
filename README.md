@@ -2,9 +2,11 @@
 
 DETR (Facebook DETR) を使ったシンプルな物体検出 API + フロントエンド（FastAPI）。
 
+<div align="center">
 <p align="center">
-    <img src="https://github.com/Ryo-Kawanami/object_detection_app_uv/main/assets/showcase.png" width="300"/>
+    <img src="https://github.com/Ryo-Kawanami/object_detection_app_uv/blob/main/assets/showcase.png"/>
 <p>
+</div>
 
 ## 概要
 
